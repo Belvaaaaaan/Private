@@ -137,6 +137,10 @@ unsigned shade_clamped_checks;
 unsigned shade_clamped_hits,shade_clamped_vertices;
 #endif
 static unsigned shade_clock,shade_hits,shade_misses,shade_checks;
+/* Diagnostic split of shade_misses: a TEV structure already seen with other
+ * colours (colour-only) versus one not seen recently (new-structure). */
+static unsigned shade_colour_misses,shade_structure_misses;
+static u32 shade_structures[256];
 static volatile unsigned shade_validate;
 static unsigned primitive_vertices[8];
 static unsigned point_callers[16][2];
@@ -623,7 +627,8 @@ void GXSetDrawDone(void){
         {extern unsigned material_color_hits;static unsigned colour0;
         OSReport("Primitive setup/60 frames GXBegin=%u immediate-vertices=%u ticks; colour-only material updates=%u\n",profile_begin,profile_vertices,material_color_hits-colour0);
         colour0=material_color_hits;profile_begin=profile_vertices=0;}
-        OSReport("Material cache hits=%u misses=%u checks=%u\n",shade_hits,shade_misses,shade_checks);
+        OSReport("Material cache hits=%u misses=%u (colour-only=%u new-structure=%u) checks=%u\n",
+            shade_hits,shade_misses,shade_colour_misses,shade_structure_misses,shade_checks);
         {static unsigned merged0,batches0;OSReport("Immediate primitives merged=%u into batches=%u\n",mp_gx_merged_primitives-merged0,mp_gx_merge_batches-batches0);merged0=mp_gx_merged_primitives;batches0=mp_gx_merge_batches;}
         {extern unsigned mp_gx_textured_draws,mp_gx_mipmapped_draws,mp_gx_mipmapped_levels;static unsigned t0,m0,l0;
             OSReport("Textured draws=%u mipmapped=%u (mean max LOD %.1f)\n",mp_gx_textured_draws-t0,mp_gx_mipmapped_draws-m0,
@@ -863,6 +868,19 @@ static void prepare_material_program(void){
     slot->clamped.valid=clamped_plan.valid;if(clamped_plan.valid)slot->clamped=clamped_plan;
 }
 #endif
+/* Hash only the material's structure (stage count, flat flag and TEV rows),
+ * leaving out its colours, and remember it in a small table. A miss whose
+ * structure is already in the table differs only in colours. */
+static void count_shade_miss(unsigned stages,unsigned flat,unsigned bytes){
+    u32 hash=2166136261u;
+    hash=(hash^stages)*16777619u;
+    hash=(hash^flat)*16777619u;
+    for(unsigned i=0;i<bytes/4;++i)hash=(hash^((u32*)tev_configuration)[i])*16777619u;
+    if(!hash)hash=1; /* 0 marks an empty table entry. */
+    u32*seen=&shade_structures[hash&255];
+    if(*seen==hash)++shade_colour_misses;
+    else{++shade_structure_misses;*seen=hash;}
+}
 static void prepare_material(void)
 {
 #ifdef MP_MATERIAL_PROGRAM_TEST
@@ -892,7 +910,7 @@ static void prepare_material(void)
             if(hit->clamped.valid){clamped_plan=hit->clamped;++shade_clamped_hits;}
 #endif
             return;}
-    }else ++shade_misses;
+    }else{++shade_misses;count_shade_miss(key.stages,key.flat,bytes);}
     if(flat_shading){float zero[3]={0},ras[2][4]={{0}};raster_color(ras[0],material[0],zero,zero,0);
         if(raster_channels&2)raster_color(ras[1],material[1],zero,zero,1);shade(flat_color,ras);}
     else {float colors[4][4],konst[4][4];for(unsigned i=0;i<4;++i)for(unsigned j=0;j<4;++j){colors[i][j]=((u8*)&tev_color[i])[j]/255.f;konst[i][j]=((u8*)&konst_color[i])[j]/255.f;}
