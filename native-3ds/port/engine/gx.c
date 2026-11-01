@@ -629,7 +629,8 @@ void GXSetDrawDone(void){
         OSReport("Primitive setup/60 frames GXBegin=%u immediate-vertices=%u ticks; colour-only material updates=%u\n",profile_begin,profile_vertices,material_color_hits-colour0);
         colour0=material_color_hits;profile_begin=profile_vertices=0;}
 OSReport("Material cache hits=%u misses=%u (colour-only=%u new-structure=%u) checks=%u\n",
-            shade_hits,shade_misses,shade_colour_misses,shade_structure_misses,shade_checks); //Pieza cuatrooo        {static unsigned merged0,batches0;OSReport("Immediate primitives merged=%u into batches=%u\n",mp_gx_merged_primitives-merged0,mp_gx_merge_batches-batches0);merged0=mp_gx_merged_primitives;batches0=mp_gx_merge_batches;}
+            shade_hits,shade_misses,shade_colour_misses,shade_structure_misses,shade_checks); //Pieza cuatrooo
+                    {static unsigned merged0,batches0;OSReport("Immediate primitives merged=%u into batches=%u\n",mp_gx_merged_primitives-merged0,mp_gx_merge_batches-batches0);merged0=mp_gx_merged_primitives;batches0=mp_gx_merge_batches;}
         {extern unsigned mp_gx_textured_draws,mp_gx_mipmapped_draws,mp_gx_mipmapped_levels;static unsigned t0,m0,l0;
             OSReport("Textured draws=%u mipmapped=%u (mean max LOD %.1f)\n",mp_gx_textured_draws-t0,mp_gx_mipmapped_draws-m0,
                 mp_gx_mipmapped_draws!=m0?(double)(mp_gx_mipmapped_levels-l0)/(mp_gx_mipmapped_draws-m0):0.0);
